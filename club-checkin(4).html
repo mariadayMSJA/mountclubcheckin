@@ -1,0 +1,1026 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Club Check-In</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:wght@400;600;700;800&display=swap');
+  :root{
+    --purple-deep:#3a1f5c;
+    --purple:#5c3789;
+    --purple-bright:#7d4fb5;
+    --purple-soft:#efe7f7;
+    --gold:#c79b3b;
+    --gold-bright:#e0ac3f;
+    --gold-deep:#a97f24;
+    --white:#ffffff;
+    --paper:#faf6ff;
+    --ink:#241435;
+    --line:#e4dced;
+    --muted:#786f89;
+    --ok:#2f6d4f;
+    --ok-bg:#e6f2ea;
+    --warn:#a9432f;
+    --warn-bg:#fbe9e5;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--paper); color:var(--ink); min-height:100vh;
+    font-family:'Nunito','Avenir Next','Helvetica Neue',Arial,sans-serif;
+  }
+  header{
+    background:linear-gradient(135deg, var(--purple-deep), var(--purple));
+    color:var(--white); padding:20px 20px 18px; position:sticky; top:0; z-index:10;
+    box-shadow:0 4px 16px rgba(58,31,92,0.3);
+    border-bottom:4px solid var(--gold);
+  }
+  .brand{ display:flex; align-items:baseline; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+  .brand-title{ font-family:'Fredoka',sans-serif; font-size:23px; letter-spacing:0.01em; font-weight:600; }
+  .brand-title small{
+    display:block; font-family:'Nunito',Arial,sans-serif; font-size:11px; letter-spacing:0.14em;
+    text-transform:uppercase; color:var(--gold-bright); font-weight:800; margin-top:3px;
+  }
+  nav{ display:flex; gap:8px; margin-top:16px; align-items:center; }
+  .nav-tabs{ display:flex; gap:8px; flex:1; }
+  .nav-tabs button{
+    flex:1; background:rgba(255,255,255,0.1); border:2px solid rgba(255,255,255,0.3);
+    color:#f3edfb; padding:10px 8px; border-radius:999px; font-family:'Fredoka',sans-serif;
+    font-size:13.5px; font-weight:600; cursor:pointer; letter-spacing:0.02em;
+    transition:background 0.15s, color 0.15s, transform 0.1s;
+  }
+  .nav-tabs button.active{ background:var(--gold); color:#3a2606; border-color:var(--gold-bright); box-shadow:0 3px 0 var(--gold-deep); transform:translateY(-1px); }
+  .admin-nav-btn{
+    flex:0 0 auto; width:42px; height:40px; border-radius:999px; border:2px solid rgba(255,255,255,0.3);
+    background:rgba(255,255,255,0.1); color:#f3edfb; font-size:16px; cursor:pointer;
+  }
+  .admin-overlay{
+    display:none; position:fixed; inset:0; background:rgba(36,20,53,0.6);
+    align-items:center; justify-content:center; z-index:50; padding:20px;
+  }
+  .admin-overlay.show{ display:flex; }
+  .admin-box{ background:var(--white); border-radius:22px; padding:24px; max-width:320px; width:100%; box-shadow:0 14px 34px rgba(58,31,92,0.35); border:3px solid var(--purple-soft); }
+  .admin-box h2{ margin-top:0; }
+
+  main{ max-width:640px; margin:0 auto; padding:20px 16px 60px; }
+  .panel{ background:var(--white); border:2px solid var(--line); border-radius:20px; padding:20px; margin-bottom:18px; box-shadow:0 3px 10px rgba(58,31,92,0.06); }
+  h2{ font-family:'Fredoka',sans-serif; font-size:18px; margin:0 0 5px; color:var(--purple-deep); font-weight:600; }
+  .sub{ color:var(--muted); font-size:13px; margin:0 0 14px; line-height:1.5; }
+  label{ display:block; font-size:12px; font-weight:800; text-transform:uppercase; letter-spacing:0.05em; color:var(--purple); margin-bottom:6px; }
+  select, textarea, input[type=text], input[type=date]{
+    width:100%; padding:12px 14px; border:2px solid var(--line); border-radius:14px;
+    font-size:15px; font-family:inherit; background:#fffefd; color:var(--ink);
+  }
+  textarea{ resize:vertical; min-height:110px; font-family:'SF Mono',Consolas,monospace; font-size:13px; line-height:1.5; border-radius:14px; }
+  select:focus, textarea:focus, input:focus{ outline:3px solid var(--gold-bright); outline-offset:1px; border-color:var(--gold-bright); }
+  .row{ margin-bottom:14px; }
+  .btn{
+    display:inline-block; background:var(--purple); color:#fff; border:none;
+    padding:12px 22px; border-radius:999px; font-family:'Fredoka',sans-serif; font-size:14.5px;
+    font-weight:600; cursor:pointer; letter-spacing:0.02em; box-shadow:0 3px 0 var(--purple-deep);
+    transition:transform 0.08s, box-shadow 0.08s;
+  }
+  .btn:hover{ background:var(--purple-bright); }
+  .btn:active{ transform:translateY(2px); box-shadow:0 1px 0 var(--purple-deep); }
+  .btn:disabled{ opacity:0.5; cursor:not-allowed; box-shadow:none; }
+  .btn.gold{ background:var(--gold); color:#3a2606; box-shadow:0 3px 0 var(--gold-deep); }
+  .btn.gold:hover{ background:var(--gold-bright); }
+  .btn.secondary{ background:var(--white); color:var(--purple); border:2px solid var(--purple); box-shadow:none; padding:10px 20px; }
+  .btn.secondary:hover{ background:var(--purple-soft); }
+  .btn.danger{ background:var(--white); color:var(--warn); border:2px solid var(--warn); box-shadow:none; padding:10px 20px; }
+  .btn-row{ display:flex; gap:10px; flex-wrap:wrap; }
+  .btn-sm{ font-size:12px; padding:7px 16px; border-radius:999px; }
+
+  .daytype-row{ display:flex; gap:10px; margin-bottom:10px; }
+  .daytype-btn{
+    flex:1; padding:16px 10px; border-radius:18px; border:3px solid var(--line);
+    background:#fff; font-family:'Fredoka',sans-serif; font-weight:600; font-size:14.5px; cursor:pointer; text-align:center;
+  }
+  .daytype-btn.purple:hover{ border-color:var(--purple); background:var(--purple-soft); }
+  .daytype-btn.gold:hover{ border-color:var(--gold); background:#fff2d9; }
+
+  .today-banner{
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+    border-radius:999px; padding:15px 22px; margin-bottom:18px; font-family:'Fredoka',sans-serif;
+    font-weight:600; font-size:15px; box-shadow:0 3px 10px rgba(58,31,92,0.15);
+  }
+  .today-banner.purple{ background:var(--purple); color:#fff; box-shadow:0 3px 0 var(--purple-deep); }
+  .today-banner.gold{ background:var(--gold); color:#3a2606; box-shadow:0 3px 0 var(--gold-deep); }
+  .today-banner.unset{ background:var(--purple-soft); color:var(--purple-deep); font-weight:600; }
+  .today-banner .link-btn{ background:none; border:none; text-decoration:underline; cursor:pointer; font-size:12.5px; font-weight:700; color:inherit; opacity:0.85; font-family:'Nunito',sans-serif; }
+
+  .scan-input{ font-family:'Fredoka',sans-serif; font-size:22px; padding:18px; text-align:center; letter-spacing:0.04em; border:3px solid var(--purple); border-radius:18px; }
+  .scan-hint{ text-align:center; color:var(--muted); font-size:12.5px; margin-top:8px; }
+
+  .flash{ border-radius:16px; padding:14px 18px; margin-top:14px; font-size:15px; font-weight:700; display:flex; align-items:center; gap:10px; animation:pop 0.18s ease-out; }
+  .flash.ok{ background:var(--ok-bg); color:var(--ok); border:2px solid #bfe0cd; }
+  .flash.warn{ background:var(--warn-bg); color:var(--warn); border:2px solid #f0c6bb; }
+  @keyframes pop{ from{ transform:scale(0.97); opacity:0.4; } to{ transform:scale(1); opacity:1; } }
+
+  .stat-grid{ display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:18px; }
+  .stat{ background:var(--white); border:2px solid var(--line); border-radius:20px; padding:16px 18px; border-top:5px solid var(--gold); box-shadow:0 3px 10px rgba(58,31,92,0.06); }
+  .stat .num{ font-family:'Fredoka',sans-serif; font-size:30px; color:var(--purple-deep); line-height:1; font-weight:600; }
+  .stat .lbl{ font-size:11.5px; text-transform:uppercase; letter-spacing:0.06em; color:var(--muted); margin-top:6px; font-weight:800; }
+
+  .list{ list-style:none; margin:0; padding:0; }
+  .list li{ display:flex; justify-content:space-between; align-items:center; padding:11px 4px; border-bottom:2px solid var(--line); font-size:14.5px; gap:8px;}
+  .list li:last-child{ border-bottom:none; }
+  .tag{ font-size:11px; color:var(--muted); font-variant-numeric:tabular-nums; white-space:nowrap; }
+  .missing-name{ color:var(--warn); font-weight:700; }
+  .present-name{ color:var(--ink); font-weight:600; }
+  .club-pill{ font-family:'Fredoka',sans-serif; font-size:11.5px; background:var(--purple-soft); color:var(--purple-deep); padding:3px 10px; border-radius:999px; font-weight:600; white-space:nowrap; }
+  .flag-pill{ font-family:'Fredoka',sans-serif; font-size:10.5px; background:#fff2d9; color:var(--gold-deep); padding:3px 9px; border-radius:999px; font-weight:700; letter-spacing:0.03em; text-transform:uppercase; }
+  .daycolor-pill{ font-family:'Fredoka',sans-serif; font-size:10.5px; padding:3px 10px; border-radius:999px; font-weight:700; text-transform:uppercase; letter-spacing:0.03em; }
+  .daycolor-pill.purple{ background:var(--purple); color:#fff; }
+  .daycolor-pill.gold{ background:var(--gold); color:#3a2606; }
+  .room-tag{ font-size:11px; color:var(--purple); font-weight:700; }
+
+  .empty{ color:var(--muted); font-size:13.5px; text-align:center; padding:20px 10px; }
+
+  #camWrap{ display:none; margin-top:12px; }
+  #camWrap.on{ display:block; }
+  #quaggaViewport{ position:relative; width:100%; border-radius:18px; overflow:hidden; background:#000; min-height:220px; border:3px solid var(--purple); }
+  #quaggaViewport video, #quaggaViewport canvas{ width:100%; display:block; }
+  #quaggaViewport canvas.drawingBuffer{ position:absolute; top:0; left:0; }
+
+  .shared-note{ background:#fff8e9; border:2px solid #ecd8a8; color:#7a5a17; font-size:12.5px; padding:12px 14px; border-radius:16px; margin-bottom:18px; line-height:1.5; }
+  .flagship-form{ display:flex; gap:8px; flex-wrap:wrap; margin-bottom:8px; }
+  .flagship-form input[type=date]{ flex:1; min-width:145px; }
+  .flagship-form input[type=text]{ flex:1.4; min-width:150px; }
+  .flagship-form select{ flex:1; min-width:150px; }
+  .flagship-form .btn{ flex-basis:100%; }
+  .flagship-row{ display:flex; align-items:center; justify-content:space-between; padding:11px 4px; border-bottom:2px solid var(--line); font-size:14px; gap:8px; }
+  .flagship-row:last-child{ border-bottom:none; }
+  .rm-btn{ background:none; border:none; color:var(--warn); font-size:19px; cursor:pointer; line-height:1; padding:2px 6px; font-weight:700; }
+  .club-line-hint{ font-size:11.5px; color:var(--muted); margin-top:-4px; margin-bottom:12px; }
+  .section-head{ display:flex; align-items:baseline; justify-content:space-between; gap:8px; margin-top:6px; }
+  .room-note{ font-size:12px; color:var(--muted); margin:2px 0 10px; }
+  .cap-note{ font-size:12px; color:var(--gold-deep); font-weight:800; margin:2px 0 10px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <div class="brand-title">Club Check-In<small>Live attendance by scan</small></div>
+  </div>
+  <nav>
+    <div class="nav-tabs">
+      <button class="active" data-tab="scan">Check-In</button>
+      <button id="navDashboard" data-tab="dashboard" style="display:none;">Dashboard</button>
+      <button id="navSetup" data-tab="setup" style="display:none;">Setup</button>
+    </div>
+    <button id="adminBtn" class="admin-nav-btn" type="button" title="Admin access">🔒</button>
+  </nav>
+</header>
+
+<div class="admin-overlay" id="adminOverlay">
+  <div class="admin-box">
+    <h2>Admin access</h2>
+    <p class="sub">Enter the admin PIN to reach Dashboard and Setup.</p>
+    <div class="row">
+      <input type="password" id="adminPinInput" placeholder="PIN" inputmode="numeric">
+    </div>
+    <div id="adminFlash"></div>
+    <div class="btn-row">
+      <button class="btn" id="adminUnlockBtn">Unlock</button>
+      <button class="btn secondary" id="adminCancelBtn">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<main>
+
+<div id="tab-scan">
+  <div id="todayBanner"></div>
+
+  <div class="panel">
+    <h2>Scan station</h2>
+    <p class="sub">Select today's club, then scan each badge. A wired/Bluetooth barcode scanner types the code and hits Enter automatically. No scanner? Type the ID and press Enter, or use the camera button for a QR badge.</p>
+
+    <div class="row">
+      <label for="clubSelect">Club meeting today</label>
+      <select id="clubSelect"></select>
+    </div>
+
+    <div class="row">
+      <label for="scanBox">Scan or enter student ID</label>
+      <input id="scanBox" class="scan-input" type="text" autocomplete="off" placeholder="—" autofocus>
+      <div class="scan-hint">Field stays focused for scanner input. Tap it if focus is lost.</div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn secondary" id="camToggle">Scan with camera</button>
+    </div>
+    <p class="scan-hint" style="margin-top:0;">Works best in good light, badge held steady about 4–6 inches from the camera.</p>
+    <div id="camWrap">
+      <div id="quaggaViewport"></div>
+    </div>
+
+    <div id="flashZone"></div>
+  </div>
+
+  <div class="panel">
+    <h2>Checked in — <span id="clubLabel">this club</span> <span class="room-tag" id="clubRoomTag"></span></h2>
+    <ul class="list" id="sessionList"></ul>
+    <div class="empty" id="sessionEmpty">No scans yet for this club today.</div>
+  </div>
+</div>
+
+<div id="tab-dashboard" style="display:none;">
+  <div class="stat-grid">
+    <div class="stat"><div class="num" id="statChecked">0</div><div class="lbl">Checked in today</div></div>
+    <div class="stat"><div class="num" id="statMissing">0</div><div class="lbl">Not yet accounted for</div></div>
+  </div>
+
+  <div class="panel">
+    <h2>Unaccounted for</h2>
+    <p class="sub">Anyone on the roster with no scan at any club today.</p>
+    <ul class="list" id="missingList"></ul>
+    <div class="empty" id="missingEmpty">Everyone on the roster has checked in somewhere.</div>
+  </div>
+
+  <div class="panel">
+    <h2>Today's full log</h2>
+    <ul class="list" id="fullLog"></ul>
+    <div class="empty" id="fullLogEmpty">No check-ins recorded yet today.</div>
+    <div class="btn-row" style="margin-top:14px;">
+      <button class="btn secondary" id="exportBtn">Copy today's log as CSV</button>
+      <button class="btn danger" id="clearBtn">Clear today's log</button>
+    </div>
+  </div>
+</div>
+
+<div id="tab-setup" style="display:none;">
+  <div class="shared-note">Roster, clubs, rooms, the day-type calendar, flagship signups, and the scan log are shared across anyone who opens this link. Don't put anything here you wouldn't want visible to other staff using this link.</div>
+
+  <div class="panel">
+    <h2>Roster</h2>
+    <p class="sub">One student per line: <strong>ID, Full Name</strong> — the ID should match whatever's encoded on the badge barcode/QR code.</p>
+    <div class="row">
+      <textarea id="rosterBox" placeholder="10234, Ava Thompson&#10;10235, Brynn Colletti&#10;10236, Camille Doyle"></textarea>
+    </div>
+    <div class="btn-row"><button class="btn" id="saveRoster">Save roster</button></div>
+    <div id="rosterFlash"></div>
+  </div>
+
+  <div class="panel">
+    <h2>Rooms</h2>
+    <p class="sub">The full list of rooms available for club time. This is what flagship room assignment checks against.</p>
+    <div class="row">
+      <textarea id="roomBox" placeholder="Room 101&#10;Room 204&#10;Library&#10;Gym"></textarea>
+    </div>
+    <div class="btn-row"><button class="btn" id="saveRooms">Save rooms</button></div>
+    <div id="roomFlash"></div>
+  </div>
+
+  <div class="panel">
+    <h2>Regular clubs</h2>
+    <p class="sub">One club per line: <strong>Club Name | Purple, Gold, or Both | Room</strong> — every Purple/Gold club has a fixed, designated room.</p>
+    <div class="row">
+      <textarea id="clubBox" placeholder="Debate | Purple | Room 101&#10;Robotics | Gold | Room 204&#10;Yearbook | Both | Library"></textarea>
+    </div>
+    <div class="club-line-hint">Leave off " | Purple/Gold/Both" and a club defaults to Both. Room is optional but recommended.</div>
+    <div class="btn-row"><button class="btn" id="saveClubs">Save clubs</button></div>
+    <div id="clubFlash"></div>
+  </div>
+
+  <div class="panel">
+    <h2>Day-type calendar</h2>
+    <p class="sub">Set which dates are Purple Day and which are Gold Day. Check-In detects today's color automatically — no manual toggle needed on the day of. Setting a whole term's dates in advance also means flagship room booking can correctly check against Purple/Gold room assignments right away.</p>
+    <div class="row">
+      <label for="calBulk">Bulk add (one per line: <code>YYYY-MM-DD, Purple</code> or <code>Gold</code>)</label>
+      <textarea id="calBulk" placeholder="2026-09-04, Purple&#10;2026-09-11, Gold&#10;2026-09-18, Purple"></textarea>
+    </div>
+    <div class="btn-row" style="margin-bottom:14px;"><button class="btn" id="saveCalBulk">Save bulk dates</button></div>
+    <div class="club-line-hint">This adds to the calendar — it won't remove dates already saved. Re-adding a date already on file overwrites just that date's color.</div>
+    <p class="sub" style="margin-top:2px;">Or add one at a time:</p>
+    <div class="flagship-form">
+      <input type="date" id="calDate">
+      <select id="calType"><option value="purple">Purple Day</option><option value="gold">Gold Day</option></select>
+      <button class="btn" id="addCalDay">Add date</button>
+    </div>
+    <div id="calFlash"></div>
+    <div class="section-head">
+      <span></span>
+      <button class="btn-sm secondary" id="toggleCalHistory">Show past dates</button>
+    </div>
+    <ul class="list" id="calList" style="margin-top:8px;"></ul>
+    <div class="empty" id="calEmpty">No upcoming dates set yet.</div>
+  </div>
+
+  <div class="panel">
+    <h2>Flagship club directory</h2>
+    <p class="sub">The master list of flagship groups (Service Teams, Campus Organizations, Seasonal &amp; Competitions, etc). This populates the dropdown when booking a room below — no retyping names, no typos.</p>
+    <div class="row">
+      <textarea id="flagDirBox" placeholder="Education Team&#10;Environmental Team&#10;Robotics&#10;Mock Trial"></textarea>
+    </div>
+    <div class="btn-row"><button class="btn" id="saveFlagDir">Save directory</button></div>
+    <div id="flagDirFlash"></div>
+  </div>
+
+  <div class="panel">
+    <h2>Flagship club room booking</h2>
+    <p class="sub">Flagship clubs are a separate set from Purple/Gold clubs, and don't self-signup — assigning a room here is what books their spot for that date. Up to 5 flagship clubs per date.</p>
+    <div class="flagship-form">
+      <input type="date" id="flagDate">
+      <select id="flagNameSelect"><option value="">— Choose a flagship club —</option><option value="__other__">Other (type name)</option></select>
+      <input type="text" id="flagNameOther" placeholder="Type flagship club name" style="display:none;">
+      <select id="flagRoom"><option value="">Pick a date first</option></select>
+      <button class="btn gold" id="addFlagship">Book room &amp; add signup</button>
+    </div>
+    <div id="roomAvailNote" class="room-note"></div>
+    <div id="flagshipFlash"></div>
+    <div class="section-head">
+      <span></span>
+      <button class="btn-sm secondary" id="toggleFlagHistory">Show past dates</button>
+    </div>
+    <ul class="list" id="flagshipList" style="margin-top:8px;"></ul>
+    <div class="empty" id="flagshipEmpty">No upcoming flagship signups yet.</div>
+  </div>
+</div>
+
+</main>
+
+<script>
+const todayKey = () => new Date().toISOString().slice(0,10);
+const todayPretty = () => new Date().toLocaleDateString([], {weekday:'long', month:'long', day:'numeric'});
+const FLAGSHIP_CAP = 5;
+
+// Fallback so this still saves data when opened outside Claude (e.g. hosted on GitHub Pages).
+// Saves to this device's browser only — won't sync between different devices until upgraded to a real shared database.
+if (!window.storage){
+  window.storage = {
+    async get(key){
+      const raw = localStorage.getItem('ccstore:' + key);
+      if (raw === null) throw new Error('not found');
+      return { key, value: raw };
+    },
+    async set(key, value){
+      localStorage.setItem('ccstore:' + key, value);
+      return { key, value };
+    },
+    async delete(key){
+      localStorage.removeItem('ccstore:' + key);
+      return { key, deleted: true };
+    },
+    async list(prefix){
+      const keys = [];
+      for (let i = 0; i < localStorage.length; i++){
+        const k = localStorage.key(i);
+        if (k && k.startsWith('ccstore:' + (prefix || ''))) keys.push(k.slice('ccstore:'.length));
+      }
+      return { keys, prefix };
+    }
+  };
+}
+
+let roster = [];              // {id, name}
+let clubs = [];                // {name, type: 'purple'|'gold'|'both', room}
+let rooms = [];                 // string[]
+let dayTypeCalendar = [];      // {id, date, type}
+let flagshipSignups = [];      // {id, date, name, room}
+let flagshipDirectory = [];    // string[]
+let log = [];                  // {id, name, club, time}
+let showCalHistory = false;
+let showFlagHistory = false;
+
+async function loadAll(){
+  try { const r = await window.storage.get('roster', true); roster = r ? JSON.parse(r.value) : []; } catch(e){ roster = []; }
+  try { const c = await window.storage.get('clubs_v3', true); clubs = c ? JSON.parse(c.value) : []; } catch(e){ clubs = []; }
+  try { const rm = await window.storage.get('rooms', true); rooms = rm ? JSON.parse(rm.value) : []; } catch(e){ rooms = []; }
+  try { const d = await window.storage.get('dayTypeCalendar', true); dayTypeCalendar = d ? JSON.parse(d.value) : []; } catch(e){ dayTypeCalendar = []; }
+  try { const f = await window.storage.get('flagshipSignups_v2', true); flagshipSignups = f ? JSON.parse(f.value) : []; } catch(e){ flagshipSignups = []; }
+  try { const fd = await window.storage.get('flagshipDirectory', true); flagshipDirectory = fd ? JSON.parse(fd.value) : []; } catch(e){ flagshipDirectory = []; }
+  try { const l = await window.storage.get('log:' + todayKey(), true); log = l ? JSON.parse(l.value) : []; } catch(e){ log = []; }
+
+  document.getElementById('rosterBox').value = roster.map(s => s.id + ', ' + s.name).join('\n');
+  document.getElementById('roomBox').value = rooms.join('\n');
+  document.getElementById('flagDirBox').value = flagshipDirectory.join('\n');
+  renderFlagNameSelect();
+  document.getElementById('clubBox').value = clubs.map(c => c.name + ' | ' + capType(c.type) + (c.room ? ' | ' + c.room : '')).join('\n');
+
+  renderTodayBanner();
+  renderCalList();
+  refreshFlagRoomOptions();
+  renderFlagshipList();
+  renderClubSelect();
+  renderAll();
+}
+
+function capType(t){ return t === 'purple' ? 'Purple' : t === 'gold' ? 'Gold' : 'Both'; }
+
+function todaysDayType(){
+  const entry = dayTypeCalendar.find(d => d.date === todayKey());
+  return entry ? entry.type : null;
+}
+
+function dayTypeFor(date){
+  const entry = dayTypeCalendar.find(d => d.date === date);
+  return entry ? entry.type : null;
+}
+
+async function upsertCalendarDay(date, type){
+  dayTypeCalendar = dayTypeCalendar.filter(d => d.date !== date);
+  dayTypeCalendar.push({ id: 'd' + Date.now() + Math.random().toString(36).slice(2,6), date, type });
+  try { await window.storage.set('dayTypeCalendar', JSON.stringify(dayTypeCalendar), true); } catch(e){}
+}
+
+function renderTodayBanner(){
+  const el = document.getElementById('todayBanner');
+  const t = todaysDayType();
+  const dateLabel = todayPretty();
+  const todaysFlag = flagshipSignups.filter(f => f.date === todayKey());
+  const flagNote = todaysFlag.length ? ` · ${todaysFlag.length} flagship club${todaysFlag.length > 1 ? 's' : ''} today` : '';
+
+  if (t){
+    el.innerHTML = `<div class="today-banner ${t}">
+      <span>${dateLabel} — ${capType(t)} Day${flagNote}</span>
+      <button class="link-btn" id="editTodayType">Not right? Change it</button>
+    </div>`;
+  } else {
+    const upcoming = dayTypeCalendar.filter(d => d.date >= todayKey()).slice().sort((a,b) => a.date.localeCompare(b.date)).slice(0, 3);
+    const todaysFlagCount = flagshipSignups.filter(f => f.date === todayKey()).length;
+    el.innerHTML = `<div class="today-banner unset">
+      <span>${dateLabel} — Today is not a Purple or Gold club day!${todaysFlagCount ? ` But ${todaysFlagCount} flagship club${todaysFlagCount > 1 ? 's are' : ' is'} scheduled — see the dropdown below.` : ''}</span>
+    </div>
+    <div class="panel">
+      <h2>Coming up</h2>
+      <ul class="list" id="upcomingList">${upcoming.map(d => {
+        const flagCount = flagshipSignups.filter(f => f.date === d.date).length;
+        return `<li><span class="present-name">${d.date}</span><span class="daycolor-pill ${d.type}">${capType(d.type)}</span>${flagCount ? `<span class="tag">${flagCount} flagship</span>` : ''}</li>`;
+      }).join('')}</ul>
+      <div class="empty" id="upcomingEmpty" style="${upcoming.length ? 'display:none;' : ''}">No upcoming club days on the calendar yet.</div>
+    </div>`;
+    return;
+  }
+  document.getElementById('editTodayType').addEventListener('click', () => {
+    el.innerHTML = `<div class="today-banner unset">
+      <span>${dateLabel} — change today's day type</span>
+    </div>
+    <div class="panel">
+      <div class="daytype-row">
+        <button class="daytype-btn purple" id="quickPurple2">Purple Day</button>
+        <button class="daytype-btn gold" id="quickGold2">Gold Day</button>
+      </div>
+    </div>`;
+    document.getElementById('quickPurple2').addEventListener('click', async () => {
+      await upsertCalendarDay(todayKey(), 'purple');
+      renderTodayBanner(); renderCalList(); renderClubSelect(); renderAll();
+    });
+    document.getElementById('quickGold2').addEventListener('click', async () => {
+      await upsertCalendarDay(todayKey(), 'gold');
+      renderTodayBanner(); renderCalList(); renderClubSelect(); renderAll();
+    });
+  });
+}
+
+function roomForRegularClub(name){
+  const c = clubs.find(c => c.name === name);
+  return c ? c.room : '';
+}
+function roomForFlagshipToday(name){
+  const f = flagshipSignups.find(f => f.date === todayKey() && f.name === name);
+  return f ? f.room : '';
+}
+function isFlagshipName(name){
+  return flagshipDirectory.includes(name) || flagshipSignups.some(f => f.date === todayKey() && f.name === name);
+}
+
+function renderClubSelect(){
+  const sel = document.getElementById('clubSelect');
+  const prev = sel.value;
+  const dayType = todaysDayType();
+  const todaysFlag = flagshipSignups.filter(f => f.date === todayKey());
+
+  const regularOptions = dayType ? clubs.filter(c => c.type === 'both' || c.type === dayType) : [];
+
+  let html = '';
+  let allNames = [];
+
+  if (dayType){
+    if (regularOptions.length === 0 && todaysFlag.length === 0){
+      html = '<option value="">No clubs configured for today yet</option>';
+    } else {
+      if (regularOptions.length){
+        html += '<optgroup label="' + capType(dayType) + ' Day clubs">' +
+          regularOptions.map(c => `<option value="${escapeHtml(c.name)}">${escapeHtml(c.name)}${c.room ? ' — ' + escapeHtml(c.room) : ''}</option>`).join('') +
+          '</optgroup>';
+        allNames.push(...regularOptions.map(c => c.name));
+      }
+      if (todaysFlag.length){
+        html += '<optgroup label="Flagship clubs — today only">' +
+          todaysFlag.map(f => `<option value="${escapeHtml(f.name)}">${escapeHtml(f.name)}${f.room ? ' — ' + escapeHtml(f.room) : ''} ★</option>`).join('') +
+          '</optgroup>';
+        allNames.push(...todaysFlag.map(f => f.name));
+      }
+    }
+  } else {
+    // Non-club day: offer the full flagship directory, showing a room only where one's actually booked today
+    const bookingRoom = {};
+    todaysFlag.forEach(f => { bookingRoom[f.name] = f.room; });
+    const names = Array.from(new Set([...flagshipDirectory, ...todaysFlag.map(f => f.name)])).sort((a,b) => a.localeCompare(b));
+    if (names.length === 0){
+      html = '<option value="">Today is not a Purple or Gold club day</option>';
+    } else {
+      html += '<optgroup label="Flagship clubs">' +
+        names.map(n => `<option value="${escapeHtml(n)}">${escapeHtml(n)}${bookingRoom[n] ? ' — ' + escapeHtml(bookingRoom[n]) : ''}</option>`).join('') +
+        '</optgroup>';
+      allNames = names;
+    }
+  }
+
+  sel.innerHTML = html;
+  if (allNames.includes(prev)) sel.value = prev;
+  updateClubHeader();
+}
+
+function updateClubHeader(){
+  const sel = document.getElementById('clubSelect');
+  const name = sel.value;
+  document.getElementById('clubLabel').textContent = name || 'this club';
+  const room = name ? (roomForRegularClub(name) || roomForFlagshipToday(name)) : '';
+  document.getElementById('clubRoomTag').textContent = room ? '· ' + room : '';
+}
+
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
+
+async function saveLog(){
+  try { await window.storage.set('log:' + todayKey(), JSON.stringify(log), true); } catch(e){}
+}
+
+function flash(zoneId, msg, kind){
+  const zone = document.getElementById(zoneId);
+  zone.innerHTML = `<div class="flash ${kind}">${msg}</div>`;
+  clearTimeout(zone._t);
+  zone._t = setTimeout(() => { zone.innerHTML = ''; }, 2600);
+}
+
+async function handleScan(rawId){
+  const id = rawId.trim();
+  if (!id) return;
+  const club = document.getElementById('clubSelect').value;
+  const box = document.getElementById('scanBox');
+  box.value = '';
+
+  if (!club){
+    flash('flashZone', 'Pick a club before scanning.', 'warn');
+    return;
+  }
+  const student = roster.find(s => s.id === id);
+  if (!student){
+    flash('flashZone', `⚠ ID "${escapeHtml(id)}" not found on roster.`, 'warn');
+    return;
+  }
+  const dup = log.find(e => e.id === id && e.club === club);
+  if (dup){
+    flash('flashZone', `${escapeHtml(student.name)} already checked in to ${escapeHtml(club)}.`, 'warn');
+    renderAll();
+    return;
+  }
+  log.push({ id, name: student.name, club, time: new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) });
+  await saveLog();
+  flash('flashZone', `✓ ${escapeHtml(student.name)} — ${escapeHtml(club)}`, 'ok');
+  renderAll();
+}
+
+function renderAll(){
+  updateClubHeader();
+  const club = document.getElementById('clubSelect').value;
+
+  const sessionEntries = log.filter(e => e.club === club).slice().reverse();
+  const sList = document.getElementById('sessionList');
+  sList.innerHTML = sessionEntries.map(e =>
+    `<li><span class="present-name">${escapeHtml(e.name)}</span><span class="tag">${e.time}</span></li>`
+  ).join('');
+  document.getElementById('sessionEmpty').style.display = sessionEntries.length ? 'none' : 'block';
+
+  const checkedIds = new Set(log.map(e => e.id));
+  document.getElementById('statChecked').textContent = checkedIds.size;
+  const missing = roster.filter(s => !checkedIds.has(s.id));
+  document.getElementById('statMissing').textContent = missing.length;
+
+  const mList = document.getElementById('missingList');
+  const missingEmptyEl = document.getElementById('missingEmpty');
+  if (roster.length === 0){
+    mList.innerHTML = '';
+    missingEmptyEl.textContent = 'Add a roster in Setup to enable this check.';
+    missingEmptyEl.style.display = 'block';
+  } else {
+    mList.innerHTML = missing.map(s => `<li><span class="missing-name">${escapeHtml(s.name)}</span><span class="tag">${escapeHtml(s.id)}</span></li>`).join('');
+    missingEmptyEl.textContent = 'Everyone on the roster has checked in somewhere.';
+    missingEmptyEl.style.display = missing.length === 0 ? 'block' : 'none';
+  }
+
+  const fLog = document.getElementById('fullLog');
+  const full = log.slice().reverse();
+  fLog.innerHTML = full.map(e => {
+    const room = roomForRegularClub(e.club) || roomForFlagshipToday(e.club);
+    return `<li><span class="present-name">${escapeHtml(e.name)}</span><span class="club-pill">${escapeHtml(e.club)}${room ? ' · ' + escapeHtml(room) : ''}${isFlagshipName(e.club) ? ' <span class=\"flag-pill\">Flagship</span>' : ''}</span><span class="tag">${e.time}</span></li>`;
+  }).join('');
+  document.getElementById('fullLogEmpty').style.display = full.length ? 'none' : 'block';
+}
+
+const ADMIN_PIN = '0816'; // change this to whatever PIN you'd like admins to use
+let adminUnlocked = false;
+
+function switchTab(tab){
+  document.querySelectorAll('.nav-tabs button[data-tab]').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+  ['scan','dashboard','setup'].forEach(t => {
+    document.getElementById('tab-' + t).style.display = (t === tab) ? 'block' : 'none';
+  });
+  if (tab === 'scan') document.getElementById('scanBox').focus();
+}
+
+document.querySelectorAll('.nav-tabs button[data-tab]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    if ((btn.dataset.tab === 'dashboard' || btn.dataset.tab === 'setup') && !adminUnlocked) return;
+    switchTab(btn.dataset.tab);
+  });
+});
+
+document.getElementById('adminBtn').addEventListener('click', () => {
+  if (adminUnlocked){ switchTab('setup'); return; }
+  document.getElementById('adminOverlay').classList.add('show');
+  document.getElementById('adminPinInput').value = '';
+  document.getElementById('adminPinInput').focus();
+});
+
+document.getElementById('adminCancelBtn').addEventListener('click', () => {
+  document.getElementById('adminOverlay').classList.remove('show');
+});
+
+function tryUnlock(){
+  const val = document.getElementById('adminPinInput').value;
+  if (val === ADMIN_PIN){
+    adminUnlocked = true;
+    document.getElementById('navDashboard').style.display = '';
+    document.getElementById('navSetup').style.display = '';
+    document.getElementById('adminOverlay').classList.remove('show');
+    switchTab('setup');
+  } else {
+    flash('adminFlash', 'Incorrect PIN.', 'warn');
+  }
+}
+document.getElementById('adminUnlockBtn').addEventListener('click', tryUnlock);
+document.getElementById('adminPinInput').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') tryUnlock();
+});
+
+document.getElementById('clubSelect').addEventListener('change', renderAll);
+
+document.getElementById('scanBox').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter'){ handleScan(e.target.value); }
+});
+document.addEventListener('click', (e) => {
+  if (document.getElementById('tab-scan').style.display !== 'none' &&
+      !['INPUT','TEXTAREA','SELECT','BUTTON'].includes(e.target.tagName)){
+    document.getElementById('scanBox').focus();
+  }
+});
+
+document.getElementById('saveRoster').addEventListener('click', async () => {
+  const lines = document.getElementById('rosterBox').value.split('\n').map(l => l.trim()).filter(Boolean);
+  const parsed = [];
+  for (const line of lines){
+    const idx = line.indexOf(',');
+    if (idx === -1) continue;
+    const id = line.slice(0, idx).trim();
+    const name = line.slice(idx+1).trim();
+    if (id && name) parsed.push({ id, name });
+  }
+  roster = parsed;
+  try {
+    await window.storage.set('roster', JSON.stringify(roster), true);
+    flash('rosterFlash', `Saved ${roster.length} students.`, 'ok');
+  } catch(e){ flash('rosterFlash', 'Could not save roster — try again.', 'warn'); }
+  renderAll();
+});
+
+document.getElementById('saveRooms').addEventListener('click', async () => {
+  rooms = document.getElementById('roomBox').value.split('\n').map(l => l.trim()).filter(Boolean);
+  try {
+    await window.storage.set('rooms', JSON.stringify(rooms), true);
+    flash('roomFlash', `Saved ${rooms.length} rooms.`, 'ok');
+  } catch(e){ flash('roomFlash', 'Could not save rooms — try again.', 'warn'); }
+  refreshFlagRoomOptions();
+});
+
+document.getElementById('saveClubs').addEventListener('click', async () => {
+  const lines = document.getElementById('clubBox').value.split('\n').map(l => l.trim()).filter(Boolean);
+  const parsed = [];
+  for (const line of lines){
+    const parts = line.split('|').map(p => p.trim());
+    const name = parts[0];
+    let type = 'both';
+    if (parts[1]){
+      const typeRaw = parts[1].toLowerCase();
+      if (typeRaw.startsWith('purple')) type = 'purple';
+      else if (typeRaw.startsWith('gold')) type = 'gold';
+    }
+    const room = parts[2] || '';
+    if (name) parsed.push({ name, type, room });
+  }
+  clubs = parsed;
+  try {
+    await window.storage.set('clubs_v3', JSON.stringify(clubs), true);
+    flash('clubFlash', `Saved ${clubs.length} clubs.`, 'ok');
+  } catch(e){ flash('clubFlash', 'Could not save clubs — try again.', 'warn'); }
+  renderClubSelect();
+  refreshFlagRoomOptions();
+  renderAll();
+});
+
+function renderCalList(){
+  const list = document.getElementById('calList');
+  const empty = document.getElementById('calEmpty');
+  const toggleBtn = document.getElementById('toggleCalHistory');
+  toggleBtn.textContent = showCalHistory ? 'Hide past dates' : 'Show past dates';
+
+  let entries = dayTypeCalendar.slice();
+  if (!showCalHistory) entries = entries.filter(d => d.date >= todayKey());
+  entries.sort((a,b) => a.date.localeCompare(b.date));
+
+  list.innerHTML = entries.map(d => `
+    <li class="flagship-row">
+      <span><span class="tag">${d.date}</span> <span class="daycolor-pill ${d.type}">${capType(d.type)}</span></span>
+      <button class="rm-btn" data-id="${d.id}" title="Remove">×</button>
+    </li>`).join('');
+  empty.textContent = showCalHistory ? 'No dates set yet.' : 'No upcoming dates set yet.';
+  empty.style.display = entries.length ? 'none' : 'block';
+  list.querySelectorAll('.rm-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      dayTypeCalendar = dayTypeCalendar.filter(d => d.id !== btn.dataset.id);
+      try { await window.storage.set('dayTypeCalendar', JSON.stringify(dayTypeCalendar), true); } catch(e){}
+      renderCalList(); renderTodayBanner(); renderClubSelect(); refreshFlagRoomOptions(); renderAll();
+    });
+  });
+}
+
+document.getElementById('toggleCalHistory').addEventListener('click', () => {
+  showCalHistory = !showCalHistory;
+  renderCalList();
+});
+
+document.getElementById('saveCalBulk').addEventListener('click', async () => {
+  const lines = document.getElementById('calBulk').value.split('\n').map(l => l.trim()).filter(Boolean);
+  let count = 0, skipped = 0;
+  for (const line of lines){
+    const idx = line.indexOf(',');
+    if (idx === -1){ skipped++; continue; }
+    const date = line.slice(0, idx).trim();
+    const typeRaw = line.slice(idx+1).trim().toLowerCase();
+    const type = typeRaw.startsWith('purple') ? 'purple' : typeRaw.startsWith('gold') ? 'gold' : null;
+    if (!date || !type){ skipped++; continue; }
+    dayTypeCalendar = dayTypeCalendar.filter(d => d.date !== date);
+    dayTypeCalendar.push({ id: 'd' + Date.now() + Math.random().toString(36).slice(2,6), date, type });
+    count++;
+  }
+  try { await window.storage.set('dayTypeCalendar', JSON.stringify(dayTypeCalendar), true); } catch(e){}
+  flash('calFlash', skipped ? `Saved ${count} dates, skipped ${skipped} (check the format).` : `Saved ${count} dates.`, skipped ? 'warn' : 'ok');
+  document.getElementById('calBulk').value = '';
+  renderCalList(); renderTodayBanner(); renderClubSelect(); refreshFlagRoomOptions(); renderAll();
+});
+
+document.getElementById('addCalDay').addEventListener('click', async () => {
+  const date = document.getElementById('calDate').value;
+  const type = document.getElementById('calType').value;
+  if (!date){ flash('calFlash', 'Pick a date first.', 'warn'); return; }
+  await upsertCalendarDay(date, type);
+  flash('calFlash', `Saved ${date} as ${capType(type)} Day.`, 'ok');
+  document.getElementById('calDate').value = '';
+  renderCalList(); renderTodayBanner(); renderClubSelect(); refreshFlagRoomOptions(); renderAll();
+});
+
+function computeAvailableRooms(date){
+  if (!date) return { available: [], dayTypeKnown: false, atCap: false };
+  const dType = dayTypeFor(date);
+  const regularUsed = dType ? clubs.filter(c => c.type === 'both' || c.type === dType).map(c => c.room).filter(Boolean) : [];
+  const sameDateFlagships = flagshipSignups.filter(f => f.date === date);
+  const flagUsed = sameDateFlagships.map(f => f.room).filter(Boolean);
+  const used = new Set([...regularUsed, ...flagUsed]);
+  const available = rooms.filter(r => !used.has(r));
+  return { available, dayTypeKnown: !!dType, atCap: sameDateFlagships.length >= FLAGSHIP_CAP };
+}
+
+function refreshFlagRoomOptions(){
+  const date = document.getElementById('flagDate').value;
+  const roomSel = document.getElementById('flagRoom');
+  const note = document.getElementById('roomAvailNote');
+  const addBtn = document.getElementById('addFlagship');
+
+  if (!date){
+    roomSel.innerHTML = '<option value="">Pick a date first</option>';
+    note.textContent = '';
+    addBtn.disabled = false;
+    return;
+  }
+  const { available, dayTypeKnown, atCap } = computeAvailableRooms(date);
+  if (atCap){
+    roomSel.innerHTML = '<option value="">Date is full</option>';
+    note.textContent = `${FLAGSHIP_CAP} flagship clubs are already booked for ${date} — that's the max per date.`;
+    note.className = 'cap-note';
+    addBtn.disabled = true;
+    return;
+  }
+  addBtn.disabled = false;
+  if (rooms.length === 0){
+    roomSel.innerHTML = '<option value="">Add rooms in Setup first</option>';
+    note.textContent = 'No rooms defined yet — add your room list above.';
+    note.className = 'room-note';
+    return;
+  }
+  if (available.length === 0){
+    roomSel.innerHTML = '<option value="">No rooms free that day</option>';
+    note.textContent = dayTypeKnown
+      ? 'Every room is booked by a Purple/Gold club or another flagship signup on that date.'
+      : "Day type isn't set for that date yet, so this only excludes rooms already booked by other flagship clubs.";
+    note.className = 'room-note';
+    return;
+  }
+  roomSel.innerHTML = available.map(r => `<option value="${escapeHtml(r)}">${escapeHtml(r)}</option>`).join('');
+  note.textContent = dayTypeKnown
+    ? `${available.length} room${available.length > 1 ? 's' : ''} free that day.`
+    : `Day type isn't set for that date yet — showing rooms not already booked by another flagship club.`;
+  note.className = 'room-note';
+}
+
+document.getElementById('flagDate').addEventListener('change', refreshFlagRoomOptions);
+
+function renderFlagNameSelect(){
+  const sel = document.getElementById('flagNameSelect');
+  const prev = sel.value;
+  const sorted = flagshipDirectory.slice().sort((a,b) => a.localeCompare(b));
+  sel.innerHTML = '<option value="">— Choose a flagship club —</option>' +
+    sorted.map(n => `<option value="${escapeHtml(n)}">${escapeHtml(n)}</option>`).join('') +
+    '<option value="__other__">Other (type name)</option>';
+  if ([...sorted, '__other__', ''].includes(prev)) sel.value = prev;
+  document.getElementById('flagNameOther').style.display = sel.value === '__other__' ? 'block' : 'none';
+}
+
+document.getElementById('flagNameSelect').addEventListener('change', (e) => {
+  document.getElementById('flagNameOther').style.display = e.target.value === '__other__' ? 'block' : 'none';
+});
+
+document.getElementById('saveFlagDir').addEventListener('click', async () => {
+  flagshipDirectory = document.getElementById('flagDirBox').value.split('\n').map(l => l.trim()).filter(Boolean);
+  try {
+    await window.storage.set('flagshipDirectory', JSON.stringify(flagshipDirectory), true);
+    flash('flagDirFlash', `Saved ${flagshipDirectory.length} flagship groups.`, 'ok');
+  } catch(e){ flash('flagDirFlash', 'Could not save directory — try again.', 'warn'); }
+  renderFlagNameSelect();
+  renderClubSelect();
+  renderAll();
+});
+
+function renderFlagshipList(){
+  const list = document.getElementById('flagshipList');
+  const empty = document.getElementById('flagshipEmpty');
+  const toggleBtn = document.getElementById('toggleFlagHistory');
+  toggleBtn.textContent = showFlagHistory ? 'Hide past dates' : 'Show past dates';
+
+  let entries = flagshipSignups.slice();
+  if (!showFlagHistory) entries = entries.filter(f => f.date >= todayKey());
+  entries.sort((a,b) => a.date.localeCompare(b.date) || a.name.localeCompare(b.name));
+
+  list.innerHTML = entries.map(f => `
+    <li class="flagship-row">
+      <span><strong>${escapeHtml(f.name)}</strong> <span class="tag">${f.date}</span>${f.room ? ' <span class="room-tag">' + escapeHtml(f.room) + '</span>' : ''}</span>
+      <button class="rm-btn" data-id="${f.id}" title="Remove">×</button>
+    </li>`).join('');
+  empty.textContent = showFlagHistory ? 'No flagship signups yet.' : 'No upcoming flagship signups yet.';
+  empty.style.display = entries.length ? 'none' : 'block';
+  list.querySelectorAll('.rm-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      flagshipSignups = flagshipSignups.filter(f => f.id !== btn.dataset.id);
+      try { await window.storage.set('flagshipSignups_v2', JSON.stringify(flagshipSignups), true); } catch(e){}
+      renderFlagshipList(); renderTodayBanner(); renderClubSelect(); refreshFlagRoomOptions(); renderAll();
+    });
+  });
+}
+
+document.getElementById('toggleFlagHistory').addEventListener('click', () => {
+  showFlagHistory = !showFlagHistory;
+  renderFlagshipList();
+});
+
+document.getElementById('addFlagship').addEventListener('click', async () => {
+  const date = document.getElementById('flagDate').value;
+  const sel = document.getElementById('flagNameSelect').value;
+  const otherVal = document.getElementById('flagNameOther').value.trim();
+  const name = sel === '__other__' ? otherVal : sel;
+  const room = document.getElementById('flagRoom').value;
+
+  if (!date || !name){
+    flash('flagshipFlash', 'Enter a date and a club name.', 'warn');
+    return;
+  }
+  const existingForDate = flagshipSignups.filter(f => f.date === date);
+  if (existingForDate.length >= FLAGSHIP_CAP){
+    flash('flagshipFlash', `${date} already has ${FLAGSHIP_CAP} flagship clubs booked — that's the max.`, 'warn');
+    return;
+  }
+  if (!room){
+    flash('flagshipFlash', 'Pick a room to book for this signup.', 'warn');
+    return;
+  }
+  flagshipSignups.push({ id: 'f' + Date.now() + Math.random().toString(36).slice(2,6), date, name, room });
+  try {
+    await window.storage.set('flagshipSignups_v2', JSON.stringify(flagshipSignups), true);
+    flash('flagshipFlash', `Booked ${room} for ${name} on ${date}.`, 'ok');
+  } catch(e){ flash('flagshipFlash', 'Could not save signup — try again.', 'warn'); }
+
+  if (sel === '__other__' && otherVal && !flagshipDirectory.includes(otherVal)){
+    flagshipDirectory.push(otherVal);
+    try { await window.storage.set('flagshipDirectory', JSON.stringify(flagshipDirectory), true); } catch(e){}
+    renderFlagNameSelect();
+  }
+  document.getElementById('flagNameOther').value = '';
+  document.getElementById('flagNameSelect').value = '';
+  document.getElementById('flagNameOther').style.display = 'none';
+  renderFlagshipList(); renderTodayBanner(); renderClubSelect(); refreshFlagRoomOptions(); renderAll();
+});
+
+document.getElementById('exportBtn').addEventListener('click', async () => {
+  const rows = [['ID','Name','Club','Time'], ...log.map(e => [e.id, e.name, e.club, e.time])];
+  const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+  try {
+    await navigator.clipboard.writeText(csv);
+    flash('flashZone', 'CSV copied to clipboard.', 'ok');
+  } catch(e){
+    const ta = document.createElement('textarea');
+    ta.value = csv; document.body.appendChild(ta); ta.select();
+    document.execCommand('copy'); document.body.removeChild(ta);
+  }
+});
+
+document.getElementById('clearBtn').addEventListener('click', async () => {
+  if (!confirm('Clear all check-ins for today? This cannot be undone.')) return;
+  log = [];
+  await saveLog();
+  renderAll();
+});
+
+let quaggaRunning = false;
+let scanLocked = false;
+
+document.getElementById('camToggle').addEventListener('click', () => {
+  if (quaggaRunning){ stopCamera(); return; }
+  startCamera();
+});
+
+function startCamera(){
+  const wrap = document.getElementById('camWrap');
+  wrap.classList.add('on');
+  scanLocked = false;
+  Quagga.init({
+    inputStream: {
+      type: 'LiveStream',
+      target: document.querySelector('#quaggaViewport'),
+      constraints: { facingMode: 'environment', width: { ideal: 640 }, height: { ideal: 480 } }
+    },
+    locator: { patchSize: 'medium', halfSample: true },
+    numOfWorkers: 2,
+    decoder: { readers: ['code_128_reader', 'code_39_reader', 'ean_reader', 'upc_reader'] },
+    locate: true
+  }, function(err){
+    if (err){
+      console.error(err);
+      flash('flashZone', 'Camera unavailable — check permissions.', 'warn');
+      wrap.classList.remove('on');
+      return;
+    }
+    Quagga.start();
+    quaggaRunning = true;
+    document.getElementById('camToggle').textContent = 'Stop camera';
+  });
+
+  Quagga.onDetected(onBarcodeDetected);
+}
+
+function onBarcodeDetected(result){
+  if (scanLocked) return;
+  const code = result && result.codeResult && result.codeResult.code;
+  if (!code) return;
+  scanLocked = true;
+  handleScan(code);
+  stopCamera();
+}
+
+function stopCamera(){
+  if (quaggaRunning){
+    try { Quagga.offDetected(onBarcodeDetected); } catch(e){}
+    try { Quagga.stop(); } catch(e){}
+    quaggaRunning = false;
+  }
+  document.getElementById('camWrap').classList.remove('on');
+  document.getElementById('camToggle').textContent = 'Scan with camera';
+}
+
+loadAll();
+</script>
+</body>
+</html>
